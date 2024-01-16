@@ -1,4 +1,4 @@
-export const bills = [{
+export let bills = [{
   "id": "47qAXb6fIm2zOKkLzMro",
   "vat": "80",
   "fileUrl": "https://test.storage.tld/v0/b/billable-677b6.a…f-1.jpg?alt=media&token=c1640e12-a24b-4b11-ae52-529112e9602a",
@@ -59,3 +59,6 @@ export const bills = [{
   "fileUrl": "https://test.storage.tld/v0/b/billable-677b6.a…f-1.jpg?alt=media&token=4df6ed2c-12c8-42a2-b013-346c1346f732"
 }
 ]
+// On fait un tri sur le tableau bills pour mettre en avant les plus récentes.
+const antiChrono = (a, b) => ((a.date < b.date) ? 1 : -1)
+bills = [...bills].sort(antiChrono)
