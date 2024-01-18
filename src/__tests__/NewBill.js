@@ -177,22 +177,35 @@ describe('Given I am connected as an employee', () => {
         document, onNavigate, store: mockStore, localStorage: window.localStorage
       })
 
-      let file = screen.getByTestId("file")
-      let form = screen.getByTestId("form-new-bill")
-      let errorMsg = form.getElementsByClassName("errorMsg")[0]
 
+      let file = screen.getByTestId("file");
+      let errorMsg = screen.getByTestId("errorMsg")
+      // Changer l'extension du chemin des 2 fonctions checkIfFilePathIsTrue et handleChangeFile pour le test
+      // pour que le même chemin soit appelé pour la vérification de la validité et pour la fonction mockée de NewBillPage
       let result = await checkIfFilePathIsTrue(file, NewBillPage, 'C:\\fakepath\\Justificatiftest.ggg')
-      // Si le résultat de la fonction de vérification retourne true on affiche le message d'erreur sinon on le masque.
-      errorMsg.style.display = result ? 'none' : 'block';
+      // Simuler un événement de changement de fichier
+      await NewBillPage.handleChangeFile({
+        preventDefault: jest.fn(),
+        target: { value: 'C:\\fakepath\\Justificatiftest.ggg' },
+      });
+      console.log(result)
+      console.log(errorMsg.style.display)
+      await waitFor(() => {
+        if (result) {
+          expect(errorMsg.style.display).toBe('none');
+        } else {
+          expect(errorMsg.style.display).toBe('block');
+        }
+      })
       // Quand le résultat de la fonction de vérification est appelé, on fait un expect sur la valeur du display.block du message d'erreur
       // Si le chemin est valide on expect que le message d'erreur est caché avec display none.
-      if (result) {
-        expect(errorMsg.style.display).toBe('none');
-        // Sinon on expect que le message d'erreur est affiché
-      } else {
-        // Si result retourne false, s'assurer que le message d'erreur apparait
-        expect(errorMsg.style.display).toBe('block');
-      }
+      // if (result) {
+      //   expect(errorMsg.style.display).toBe('none');
+      //   // Sinon on expect que le message d'erreur est affiché
+      // } else {
+      //   // Si result retourne false, s'assurer que le message d'erreur apparait
+      //   expect(errorMsg.style.display).toBe('block');
+      // }
 
     })
     test("the function handleSubmit is called when user click on the button sumbit of the form", async () => {
@@ -214,20 +227,29 @@ describe('Given I am connected as an employee', () => {
 
       // Espionnez la fonction create du store
       const createSpy = jest.spyOn(mockStore.bills(), 'create');
-
       // // Spécifiez le comportement de l'espion (vous pouvez ajuster cela en fonction de vos besoins)
-      createSpy.mockResolvedValue({ fileUrl: 'mockFileUrl', key: 'mockKey' });
+      createSpy.mockResolvedValue({ fileUrl: 'https://localhost:3456/images/test.jpg', key: '1234' });
 
 
       userEvent.selectOptions(screen.getByTestId('expense-type'), 'Transports');
-
       userEvent.type(screen.getByTestId('expense-name'), 'Nom de la dépense');
-
       fireEvent.change(screen.getByTestId('datepicker'), { target: { value: '2022-01-01' } });
       userEvent.type(screen.getByTestId('amount'), '100');
       userEvent.type(screen.getByTestId('vat'), '20');
       userEvent.type(screen.getByTestId('pct'), '10');
       userEvent.type(screen.getByTestId('commentary'), 'Commentaire de la dépense');
+
+      const expectedFormData = new FormData();
+      let fileinput = screen.getByTestId("file")
+      const file = new File(['content'], 'test-file.jpg', { type: 'image/jpg' });
+
+      userEvent.upload(fileinput, file)
+      console.log(fileinput.files[0].name)
+      let fileMocked = fileinput.files[0].name
+      // On rempli le fomrData avec les données du formulaires
+      expectedFormData.append('file', fileMocked);
+      // et avec la même adresse que dans le localStorage
+      expectedFormData.append('email', 'employee@test.tld');
 
       // // Simuler la soumission du formulaire
       const submitButton = screen.getByTestId("submit-button")
@@ -235,12 +257,13 @@ describe('Given I am connected as an employee', () => {
       submitButton.addEventListener("click", handleSubmit)
       fireEvent.click(submitButton);
       expect(handleSubmit).toHaveBeenCalled()
-
-      console.log(createSpy)
-      expect(createSpy).toHaveBeenCalledWith({
-        data: expect.any(FormData),
+      await createSpy
+      expect(createSpy).toHaveBeenCalledWith(expect.objectContaining({
+        // vérifie si l'objet Data est bien rempli avec les données 
+        data: expectedFormData,
+        // la requête HTTP générée par la fonction createSpy doit inclure un en-tête spécifique appelé noContentType avec une valeur de true.
         headers: { noContentType: true },
-      });
+      }));
       createSpy.mockRestore()
 
       // Vérifier que handleSubmit a été appelée avec les bonnes valeurs
@@ -250,88 +273,126 @@ describe('Given I am connected as an employee', () => {
       // puis vérifier que updateBill est appelé (en cliquant sur le boutton envoyer du form) si filePathIsTrue est à true et non appelé si renvoie false.
 
     })
-    test("if handleSubmit is called, then the user go to the page Bills and the new bill is there", async () => {
-
-      // beforeEach(() => {
-      //   const localStorageMock = {
-      //     getItem: jest.fn().mockReturnValue(JSON.stringify({
-      //       type: 'Employee',
-      //       email: 'employee@test.tld'
-      //     })),
-      //     setItem: jest.fn(),
-      //     // Ajoutez d'autres méthodes localStorage 
-      //   };
-      //   Object.defineProperty(window, 'localStorage', { value: localStorageMock });
-      // });
-      Object.defineProperty(window, 'localStorage', { value: localStorageMock });
-      window.localStorage.setItem('user', JSON.stringify({
-        type: 'Employee',
-        email: 'employee@test.tld'
-      }));
-      // document.body.innerHTML = NewBillUI();
-
-      // const onNavigate = (pathname) => {
-      //   document.body.innerHTML = ROUTES({ pathname });
-      // };
-
-      document.body.innerHTML = NewBillUI()
-      const NewBillPage = new NewBill({
-        document, onNavigate, store: mockStore, localStorage: window.localStorage
+    describe('When I am on NewBill page but back-end send an error message', () => {
+      test('Then, Error page should be rendered', () => {
+        document.body.innerHTML = NewBillUI({ error: 'some error message' })
+        console.log(screen.getByTestId("error-message").innerHTML)
+        expect(screen.getAllByText('Erreur')).toBeTruthy()
       })
-      const UpdateSpy = jest.spyOn(mockStore.bills(), "update");
-
-      const handleSubmit = jest.fn(NewBillPage.handleSubmit)
-      userEvent.selectOptions(screen.getByTestId('expense-type'), 'Transports');
-      userEvent.type(screen.getByTestId('expense-name'), 'Nom de la dépense');
-      fireEvent.change(screen.getByTestId('datepicker'), { target: { value: '2023-01-01' } });
-      userEvent.type(screen.getByTestId('amount'), '100');
-      userEvent.type(screen.getByTestId('vat'), '20');
-      userEvent.type(screen.getByTestId('pct'), '10');
-      userEvent.type(screen.getByTestId('commentary'), 'Commentaire de la dépense');
-
-      // Je met un nouveau fichier file dans l'input de type file
-      let fileinput = screen.getByTestId("file")
-      const file = new File(['content'], 'test-file.jpg', { type: 'image/jpg' });
-
-      userEvent.upload(fileinput, file)
-      // Et je vérifie que le chemin est bien celui de l'objet file
-
-      expect(fileinput.files[0].name).toBe("test-file.jpg");
-
-
-
-
-      let fileInput = screen.getByTestId("file")
-      // const handleSubmit = jest.fn((e) => e.preventDefault(), NewBillPage.handleSubmit);
-      let result = await checkIfFilePathIsTrue(fileInput, NewBillPage, fileinput.files[0].name)
-      console.log(NewBillPage.filePathIsTrue.mock.result)
-      const form = screen.getByTestId("form-new-bill");
-      form.addEventListener("submit", handleSubmit)
-      fireEvent.submit(form);
-
-
-      await waitFor(() => {
-        // Vérifier que la fonction createSpy a été appelée si result retourne true
-        if (result) {
-          expect(UpdateSpy).toHaveBeenCalled();
-        } else {
-          // Si result retourne false, s'assurer que createSpy n'a pas été appelée
-          expect(UpdateSpy).not.toHaveBeenCalled();
-        }
+    })
+    describe("When an errors occurs on API", () => {
+      beforeEach(() => {
+        jest.spyOn(mockStore, "bills")
+        Object.defineProperty(
+          window,
+          'localStorage',
+          { value: localStorageMock }
+        )
+        window.localStorage.setItem('user', JSON.stringify({
+          type: 'Employee',
+          email: "a@a"
+        }))
+        const root = document.createElement("div")
+        root.setAttribute("id", "root")
+        document.body.appendChild(root)
+        router()
 
       })
-      if (result) {
-        // expect(handleSubmit).toHaveBeenCalled()
-        // expect(UpdateSpy).toHaveBeenCalled()
-        // await waitFor(() => expect(handleSubmit).toHaveBeenCalled());
-        // console.log(document.location.href)
-        // expect(screen.getAllByText('Mes notes de frais')).toBeTruthy()
-        // expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH['Bills']);
-        // expect(screen.getAllByText("Mes notes de frais")).toBeTruthy();
-      } else {
-        // Si filePathIsTrue est faux, onNavigate ne devrait pas être appelé
-        expect(onNavigate).not.toHaveBeenCalled();
-      }
+
+      test("Si la fonction create est rejetée on est redirigée vers la page d'erreur", async () => {
+
+        mockStore.bills.mockImplementationOnce(() => {
+          return {
+            create: (bill) => {
+              return Promise.reject(new Error("Erreur 404"))
+            }
+          }
+        })
+        window.onNavigate(ROUTES_PATH.NewBill)
+        await new Promise(process.nextTick);
+        const message = await screen.getByText(/Erreur 404/)
+
+        expect(message).toBeTruthy()
+      })
+      test("Si la fonction update est rejetée on est redirigée vers la page d'erreur", async () => {
+
+        mockStore.bills.mockImplementationOnce(() => {
+          return {
+            update: (bill) => {
+              return Promise.reject(new Error(`Erreur`))
+            }
+          }
+        })
+        window.onNavigate(ROUTES_PATH.NewBill)
+        await new Promise(process.nextTick);
+        const message = await screen.getByText(/Erreur/)
+        expect(message).toBeTruthy()
+      })
+      // Object.defineProperty(window, 'localStorage', { value: localStorageMock });
+      // window.localStorage.setItem('user', JSON.stringify({
+      //   type: 'Employee',
+      //   email: 'employee@test.tld'
+      // }));
+
+
+      // document.body.innerHTML = NewBillUI()
+      // const NewBillPage = new NewBill({
+      //   document, onNavigate, store: mockStore, localStorage: window.localStorage
+      // })
+      // const UpdateSpy = jest.spyOn(mockStore.bills(), "update");
+
+      // const handleSubmit = jest.fn(NewBillPage.handleSubmit)
+      // userEvent.selectOptions(screen.getByTestId('expense-type'), 'Transports');
+      // userEvent.type(screen.getByTestId('expense-name'), 'Nom de la dépense');
+      // fireEvent.change(screen.getByTestId('datepicker'), { target: { value: '2023-01-01' } });
+      // userEvent.type(screen.getByTestId('amount'), '100');
+      // userEvent.type(screen.getByTestId('vat'), '20');
+      // userEvent.type(screen.getByTestId('pct'), '10');
+      // userEvent.type(screen.getByTestId('commentary'), 'Commentaire de la dépense');
+
+      // // Je met un nouveau fichier file dans l'input de type file
+      // let fileinput = screen.getByTestId("file")
+      // const file = new File(['content'], 'test-file.jpg', { type: 'image/jpg' });
+
+      // userEvent.upload(fileinput, file)
+      // // Et je vérifie que le chemin est bien celui de l'objet file
+
+      // expect(fileinput.files[0].name).toBe("test-file.jpg");
+
+
+
+
+      // let fileInput = screen.getByTestId("file")
+      // // const handleSubmit = jest.fn((e) => e.preventDefault(), NewBillPage.handleSubmit);
+      // let result = await checkIfFilePathIsTrue(fileInput, NewBillPage, fileinput.files[0].name)
+      // console.log(NewBillPage.filePathIsTrue.mock.result)
+      // const form = screen.getByTestId("form-new-bill");
+      // form.addEventListener("submit", handleSubmit)
+      // fireEvent.submit(form);
+
+
+      // await waitFor(() => {
+      //   // Vérifier que la fonction createSpy a été appelée si result retourne true
+      //   if (result) {
+      //     expect(UpdateSpy).toHaveBeenCalled();
+      //   } else {
+      //     // Si result retourne false, s'assurer que createSpy n'a pas été appelée
+      //     expect(UpdateSpy).not.toHaveBeenCalled();
+      //   }
+
+      // })
+      // if (result) {
+      //   // expect(handleSubmit).toHaveBeenCalled()
+      //   // expect(UpdateSpy).toHaveBeenCalled()
+      //   // await waitFor(() => expect(handleSubmit).toHaveBeenCalled());
+      //   // console.log(document.location.href)
+      //   // expect(screen.getAllByText('Mes notes de frais')).toBeTruthy()
+      //   // expect(onNavigate).toHaveBeenCalledWith(ROUTES_PATH['Bills']);
+      //   // expect(screen.getAllByText("Mes notes de frais")).toBeTruthy();
+      // } else {
+      //   // Si filePathIsTrue est faux, onNavigate ne devrait pas être appelé
+      //   expect(onNavigate).not.toHaveBeenCalled();
+      // }
 
 
 

@@ -1,7 +1,11 @@
 import VerticalLayout from './VerticalLayout.js'
+import ErrorPage from "./ErrorPage.js"
 
-export default () => {
 
+export default ({ error }) => {
+  if (error) {
+    return ErrorPage(error)
+  }
   return (`
     <div class='layout'>
       ${VerticalLayout(120)}
@@ -56,7 +60,7 @@ export default () => {
                   <div class="col-half">
                     <label for="file" class="bold-label">Justificatif</label>
                     <input required type="file" class="form-control blue-border" data-testid="file" />
-                    <span class="errorMsg">Veuillez entrer une image au format jpg, jpeg ou png</span>
+                    <span class="errorMsg" data-testid="errorMsg">Veuillez entrer une image au format jpg, jpeg ou png</span>
                   </div>
                 </div>
             </div>
