@@ -1,5 +1,6 @@
 import { ROUTES_PATH } from '../constants/routes.js'
 import Logout from "./Logout.js"
+import NewBillUI from "../views/NewBillUI.js"
 
 export default class NewBill {
   constructor({ document, onNavigate, store, localStorage }) {
@@ -60,7 +61,9 @@ export default class NewBill {
           this.billId = key
           this.fileUrl = fileUrl
           this.fileName = fileName
-        }).catch(error => console.log(error))
+        }).catch(error => {
+          console.error(error)
+        })
 
     }
     else {
