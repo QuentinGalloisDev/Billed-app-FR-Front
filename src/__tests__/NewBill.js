@@ -268,15 +268,73 @@ describe('Given I am connected as an employee', () => {
       createSpy.mockRestore()
 
     })
+    describe("when filePathIsTrue", () => {
+      test('updateBill is called whith the good data', async () => {
+        Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+        window.localStorage.setItem('user', JSON.stringify({
+          type: 'Employee',
+          email: 'employee@test.tld'
+        }))
+        const root = document.createElement("div")
+        root.setAttribute("id", "root")
+        document.body.append(root)
+        router()
+        window.onNavigate(ROUTES_PATH.NewBill)
+
+
+        const NewBillPage = new NewBill({
+          document, onNavigate, store: mockStore, localStorage: window.localStorage
+        })
+        jest.spyOn(NewBillPage, 'filePathIsTrue').mockReturnValue(true);
+
+        const updateBillSpy = jest.spyOn(mockStore.bills(), 'update');
+        updateBillSpy.mockResolvedValue({
+          "amount": 100,
+          "commentary": "Commentaire de la dépense",
+          "date": "2022-01-01",
+          "email": "employee@test.tld",
+          "fileName": "test-file.jpg",
+          "fileUrl": "test-file.jpg",
+          "name": "Nom de la dépense",
+          "pct": 10,
+          "status": "pending",
+          "type": "Transports",
+          "vat": "20"
+        });
+        userEvent.selectOptions(screen.getByTestId('expense-type'), 'Transports');
+        userEvent.type(screen.getByTestId('expense-name'), 'Nom de la dépense');
+        fireEvent.change(screen.getByTestId('datepicker'), { target: { value: '2022-01-01' } });
+        userEvent.type(screen.getByTestId('amount'), '100');
+        userEvent.type(screen.getByTestId('vat'), '20');
+        userEvent.type(screen.getByTestId('pct'), '10');
+        userEvent.type(screen.getByTestId('commentary'), 'Commentaire de la dépense');
+
+        ;
+        let fileinput = screen.getByTestId("file")
+        const file = new File(['content'], 'test-file.jpg', { type: 'image/jpg' });
+
+        userEvent.upload(fileinput, file)
+        console.log(fileinput.files[0].name)
+
+        const submitButton = screen.getByTestId("submit-button")
+        fireEvent.click(submitButton);
+
+        await Promise.resolve();
+        expect(updateBillSpy).toHaveBeenCalledWith({
+          "data": "{\"type\":\"Transports\",\"name\":\"Nom de la dépense\",\"amount\":100,\"date\":\"2022-01-01\",\"vat\":\"20\",\"pct\":10,\"commentary\":\"Commentaire de la dépense\",\"fileUrl\":null,\"fileName\":null,\"status\":\"pending\"}",
+          "selector": null,
+        });
+      })
+    })
     describe('When I am on NewBill page but back-end send an error message', () => {
-      // test('Then, Error page should be rendered', () => {
-      //   document.body.innerHTML = NewBillUI({ error: 'some error message' })
-      //   expect(screen.getAllByText('Erreur')).toBeTruthy()
-      //   afterEach(() => {
-      //     // console.log(document.body.innerHTML);
-      //     document.body.innerHTML = '';
-      //   });
-      // })
+      test('Then, Error page should be rendered', () => {
+        document.body.innerHTML = NewBillUI({ error: 'some error message' })
+        expect(screen.getAllByText('Erreur')).toBeTruthy()
+        afterEach(() => {
+          // console.log(document.body.innerHTML);
+          document.body.innerHTML = '';
+        });
+      })
     })
     describe("When an errors occurs on API", () => {
       beforeEach(() => {
@@ -296,9 +354,6 @@ describe('Given I am connected as an employee', () => {
         // router()
         // document.body.innerHTML = NewBillUI({ error: 'Erreur 404' })
 
-        const onNavigate = (pathname) => {
-          document.body.innerHTML = ROUTES({ pathname });
-        };
       })
 
       test("Si la fonction create est rejetée on est redirigée vers la page d'erreur avec le code 404", async () => {
@@ -328,6 +383,7 @@ describe('Given I am connected as an employee', () => {
         expect(message).toBeTruthy()
 
       })
+
 
     })
   })
