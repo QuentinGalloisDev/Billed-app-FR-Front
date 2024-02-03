@@ -31,15 +31,10 @@ export default class NewBill {
     const file = this.document.querySelector(`input[data-testid="file"]`).files[0]
     console.log(e.target.value)
     const filePath = e.target.value.split(/\\/g)
-    // fileName doit se finir par jpg, jpeg ou png uniquement.
-    // Si c'est le cas on post la bill sinon on affiche un message d'erreur.
-    // let regexPathFile = /(?:jpg$)|(?:png$)|(?:jpeg$)/g
     let errorMessage = document.querySelector(".errorMsg")
 
     const fileName = filePath[filePath.length - 1]
-    // let filePathIsTrue = regexPathFile.test(fileName)
-    // console.log(filePathIsTrue)
-    // this.filePathIsTrue(fileName)
+
 
     if (this.filePathIsTrue(fileName) === true) {
       errorMessage.style.display = "none"
@@ -94,8 +89,9 @@ export default class NewBill {
     // Test
     let errorMessage = document.querySelector(".errorMsg")
     if (this.filePathIsTrue(bill.fileName) === true) {
-      console.log(bill)
+
       this.updateBill(bill)
+      console.log(bill)
       this.onNavigate(ROUTES_PATH['Bills'])
       errorMessage.style.display = "none"
 

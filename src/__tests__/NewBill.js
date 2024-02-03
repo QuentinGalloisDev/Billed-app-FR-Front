@@ -126,7 +126,7 @@ describe('Given I am connected as an employee', () => {
       // Simuler un événement de changement de fichier
       await NewBillPage.handleChangeFile({
         preventDefault: jest.fn(),
-        target: { value: 'C:\\fakepath\\test.jpg' },
+        target: { value: 'C:\\fakepath\\Justificatiftest.jpg' },
       });
 
       await waitFor(() => {
@@ -281,14 +281,25 @@ describe('Given I am connected as an employee', () => {
 
         userEvent.upload(fileinput, file)
         console.log(fileinput.files[0].name)
+        let filePath = screen.getByTestId("file").files[0].name
+        console.log(filePath)
+        filePath = filePath.split(/\\/g)
+        const fileName = filePath[filePath.length - 1]
+        console.log(fileName)
+        NewBillPage.fileUrl = fileName
+        NewBillPage.fileName = fileName
 
         const submitButton = screen.getByTestId("submit-button")
+        const handleSubmit = jest.fn(() => NewBillPage.handleSubmit)
+        submitButton.addEventListener("click", handleSubmit)
         fireEvent.click(submitButton);
 
-        await Promise.resolve();
+        await waitFor(() => expect(handleSubmit).toHaveBeenCalled());
+
         expect(updateBillSpy).toHaveBeenCalledWith({
-          "data": "{\"type\":\"Transports\",\"name\":\"Nom de la dépense\",\"amount\":100,\"date\":\"2022-01-01\",\"vat\":\"20\",\"pct\":10,\"commentary\":\"Commentaire de la dépense\",\"fileUrl\":null,\"fileName\":null,\"status\":\"pending\"}",
+          "data": "{\"type\":\"Transports\",\"name\":\"Nom de la dépense\",\"amount\":100,\"date\":\"2022-01-01\",\"vat\":\"20\",\"pct\":10,\"commentary\":\"Commentaire de la dépense\",\"fileUrl\":\"test-file.jpg\",\"fileName\":\"test-file.jpg\",\"status\":\"pending\"}",
           "selector": null,
+
         });
       })
     })
@@ -297,7 +308,6 @@ describe('Given I am connected as an employee', () => {
         document.body.innerHTML = NewBillUI({ error: 'some error message' })
         expect(screen.getAllByText('Erreur')).toBeTruthy()
         afterEach(() => {
-          // console.log(document.body.innerHTML);
           document.body.innerHTML = '';
         });
       })

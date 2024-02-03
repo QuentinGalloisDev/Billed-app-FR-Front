@@ -160,11 +160,10 @@ describe("Given I am connected as an employee", () => {
             store: mockStore,
             localStorage: window.localStorage,
           });
-          const listSpy = jest.spyOn(mockStore.bills(), "list");
-          const result = await billsPage.getBills();
           // Spy sur la méthode list du store pour vérifier si elle est appelée
-
+          const listSpy = jest.spyOn(mockStore.bills(), "list");
           // Appelle la méthode getBills de billsPage
+          const result = await billsPage.getBills();
 
           expect(listSpy).toHaveBeenCalledTimes(1);
           // Result renvoie le tableau du store mocké
